@@ -12,8 +12,8 @@ export interface ProgressInfo {
 
 // ---- main -> worker ----
 export type LlmRequest =
-  | { type: "load" }
-  | { type: "generate"; messages: ChatMessage[] };
+  | { type: "load"; model: string }
+  | { type: "generate"; messages: ChatMessage[]; model: string };
 
 export type SttRequest =
   | { type: "load" }
@@ -27,6 +27,7 @@ export type TtsRequest =
 export type WorkerEvent =
   | { type: "progress"; info: ProgressInfo }
   | { type: "ready"; device: Device }
+  | { type: "released" }
   | { type: "error"; message: string }
   // llm
   | { type: "token"; text: string }

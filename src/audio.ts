@@ -53,9 +53,21 @@ async function blobTo16kMono(blob: Blob): Promise<Float32Array> {
   return rendered.getChannelData(0).slice();
 }
 
-/** Plays raw PCM and resolves when playback finishes. */
+let activeCtx: AudioContext | null = null;
+
+/** Stops any in-progress TTS playback immediately. */
+export function stopPlayback(): void {
+  if (activeCtx) {
+    activeCtx.close().catch(() => {});
+    activeCtx = null;
+  }
+}
+
+/** Plays raw PCM and resolves when playback finishes (or is stopped). */
 export function playPcm(pcm: Float32Array, sampleRate: number): Promise<void> {
+  stopPlayback(); // only one utterance at a time
   const ctx = new AudioContext();
+  activeCtx = ctx;
   const buffer = ctx.createBuffer(1, pcm.length, sampleRate);
   // Copy into a fresh (non-shared) backing buffer to satisfy copyToChannel's typing.
   buffer.copyToChannel(new Float32Array(pcm), 0);
@@ -64,7 +76,10 @@ export function playPcm(pcm: Float32Array, sampleRate: number): Promise<void> {
   src.connect(ctx.destination);
   return new Promise((resolve) => {
     src.onended = () => {
-      ctx.close();
+      if (activeCtx === ctx) {
+        ctx.close().catch(() => {});
+        activeCtx = null;
+      }
       resolve();
     };
     src.start();

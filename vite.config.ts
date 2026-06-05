@@ -22,7 +22,12 @@ const crossOriginIsolation = {
   },
 };
 
+// On GitHub Pages a project site is served from /<repo>/, so the build needs that
+// base. The deploy workflow sets BASE_PATH; local dev/preview stays at root.
+const base = process.env.BASE_PATH || "/";
+
 export default defineConfig({
+  base,
   plugins: [
     crossOriginIsolation,
     VitePWA({

@@ -17,6 +17,8 @@
           <div id="storage" class="storage"></div>
         </div>
         <div id="status" class="status">Idle</div>
+        <select id="model" class="model-select" title="Language model"></select>
+        <button id="clear" class="ghost" title="Clear conversation">Clear</button>
         <button id="install" class="install" hidden>Install</button>
       </header>
 
@@ -32,6 +34,7 @@
         <button id="mic" class="mic" title="Hold to talk" aria-label="Hold to talk">🎙️</button>
         <input id="text" class="text" type="text" placeholder="Type a message…" autocomplete="off" />
         <button id="send" class="send">Send</button>
+        <button id="stop" class="stop" hidden title="Stop speaking">⏹</button>
         <label class="speak-toggle">
           <input id="speak" type="checkbox" checked /> Speak
         </label>
