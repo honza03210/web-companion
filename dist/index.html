@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0b0f1a" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <title>Web Companion — on-device voice assistant</title>
+    <script type="module" crossorigin src="/assets/index-f-nhYnzm.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-gLR4SUuq.css">
+  <link rel="manifest" href="/manifest.webmanifest"></head>
+  <body>
+    <div id="app">
+      <header class="topbar">
+        <div class="titles">
+          <h1>Web Companion</h1>
+          <div id="storage" class="storage"></div>
+        </div>
+        <div id="status" class="status">Idle</div>
+        <button id="install" class="install" hidden>Install</button>
+      </header>
+
+      <div id="ioshint" class="ioshint" hidden>
+        Tip: tap <strong>Share → Add to Home Screen</strong> to keep the model
+        installed offline.
+        <button id="ioshint-close" aria-label="Dismiss">×</button>
+      </div>
+
+      <main id="chat" class="chat" aria-live="polite"></main>
+
+      <footer class="composer">
+        <button id="mic" class="mic" title="Hold to talk" aria-label="Hold to talk">🎙️</button>
+        <input id="text" class="text" type="text" placeholder="Type a message…" autocomplete="off" />
+        <button id="send" class="send">Send</button>
+        <label class="speak-toggle">
+          <input id="speak" type="checkbox" checked /> Speak
+        </label>
+      </footer>
+    </div>
+  </body>
+</html>
