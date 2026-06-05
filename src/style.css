@@ -85,6 +85,17 @@ body {
   max-width: 150px;
 }
 
+.errbar {
+  background: #7f1d1d;
+  color: #fee2e2;
+  font-size: 13px;
+  padding: 10px 16px;
+  border-bottom: 1px solid #991b1b;
+  white-space: pre-wrap;
+  word-break: break-word;
+  user-select: text;
+}
+
 .ghost {
   border: 1px solid #334155;
   background: transparent;

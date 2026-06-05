@@ -4,8 +4,10 @@ import {
   MAX_HISTORY_TURNS,
   LLM_MODELS,
   DEFAULT_LLM_ID,
-  pickDevice,
+  resolveDevice,
+  isIOSLike,
   type Device,
+  type Engine,
 } from "./config";
 import type { ChatMessage, WorkerEvent } from "./protocol";
 import { Recorder, playPcm, stopPlayback } from "./audio";
@@ -27,6 +29,8 @@ const speakEl = $<HTMLInputElement>("speak");
 const stopEl = $<HTMLButtonElement>("stop");
 const clearEl = $<HTMLButtonElement>("clear");
 const modelEl = $<HTMLSelectElement>("model");
+const engineEl = $<HTMLSelectElement>("engine");
+const errEl = $<HTMLDivElement>("err");
 
 // ---------- worker wrapper ----------
 class ModelWorker {
@@ -38,6 +42,8 @@ class ModelWorker {
 
   constructor(WorkerCtor: new () => Worker, onEvent: (e: WorkerEvent) => void) {
     this.worker = new WorkerCtor();
+    this.worker.onerror = (ev) =>
+      onEvent({ type: "error", message: ev.message || "worker crashed" });
     this.ready = new Promise((res) => (this.readyResolve = res));
     this.worker.onmessage = (ev: MessageEvent<WorkerEvent>) => {
       const msg = ev.data;
@@ -108,6 +114,46 @@ function progressText(info: any): string | null {
   return null;
 }
 
+// ---------- error surfacing ----------
+function showError(msg: string) {
+  errEl.textContent = `⚠️ ${msg}`;
+  errEl.hidden = false;
+  try {
+    localStorage.setItem("wc-lasterror", msg);
+  } catch {
+    /* ignore */
+  }
+}
+window.addEventListener("error", (e) => showError(e.message || String(e.error)));
+window.addEventListener("unhandledrejection", (e) =>
+  showError(String((e.reason && e.reason.message) || e.reason)),
+);
+
+// ---------- engine selection ----------
+const ENGINE_KEY = "wc-engine";
+let currentEngine = (localStorage.getItem(ENGINE_KEY) as Engine) ?? "auto";
+if (!["auto", "webgpu", "wasm"].includes(currentEngine)) currentEngine = "auto";
+
+function setupEnginePicker() {
+  const opts: Array<[Engine, string]> = [
+    ["auto", "Auto"],
+    ["webgpu", "WebGPU (fast)"],
+    ["wasm", "WASM (stable)"],
+  ];
+  for (const [val, label] of opts) {
+    const o = document.createElement("option");
+    o.value = val;
+    o.textContent = label;
+    engineEl.appendChild(o);
+  }
+  engineEl.value = currentEngine;
+  engineEl.addEventListener("change", () => {
+    currentEngine = engineEl.value as Engine;
+    localStorage.setItem(ENGINE_KEY, currentEngine);
+    setStatus(`Engine: ${currentEngine} — applies on next message`);
+  });
+}
+
 // ---------- model selection ----------
 const MODEL_KEY = "wc-llm-model";
 let currentModel = localStorage.getItem(MODEL_KEY) ?? DEFAULT_LLM_ID;
@@ -166,7 +212,8 @@ const llm = new ModelWorker(LlmWorker, (msg) => {
       setBusy(false);
       break;
     case "error":
-      setStatus(`LLM error: ${msg.message}`);
+      setStatus("LLM error");
+      showError(msg.message);
       if (pendingBubble) pendingBubble.textContent = "⚠️ " + msg.message;
       pendingBubble = null;
       setBusy(false);
@@ -190,7 +237,8 @@ const stt = new ModelWorker(SttWorker, (msg) => {
       }
       break;
     case "error":
-      setStatus(`STT error: ${msg.message}`);
+      setStatus("STT error");
+      showError(msg.message);
       break;
   }
 });
@@ -210,7 +258,8 @@ const tts = new ModelWorker(TtsWorker, (msg) => {
       });
       break;
     case "error":
-      setStatus(`TTS error: ${msg.message}`);
+      setStatus("TTS error");
+      showError(msg.message);
       break;
   }
 });
@@ -227,6 +276,7 @@ async function send() {
   const text = textEl.value.trim();
   if (!text || busy) return;
   stopSpeaking(); // interrupt any current reply before starting a new turn
+  errEl.hidden = true;
   textEl.value = "";
   setBusy(true);
 
@@ -238,20 +288,25 @@ async function send() {
   pendingBubble = addBubble("assistant", "…");
 
   setStatus("Loading…");
-  await llm.load({ model: currentModel });
+  await llm.load({ model: currentModel, engine: currentEngine });
   setStatus("Thinking…");
   // Send the system prompt + only the most recent turns; a long history tips the
   // small model into canned-refusal mode-collapse.
   const recent = messages.slice(1).slice(-MAX_HISTORY_TURNS * 2);
-  llm.post({ type: "generate", messages: [messages[0], ...recent], model: currentModel });
+  llm.post({
+    type: "generate",
+    messages: [messages[0], ...recent],
+    model: currentModel,
+    engine: currentEngine,
+  });
 }
 
 async function speak(text: string) {
   const id = ++ttsId;
   activeTtsId = id;
   setStatus("Synthesizing speech…");
-  await tts.load();
-  tts.post({ type: "speak", id, text });
+  await tts.load({ engine: currentEngine });
+  tts.post({ type: "speak", id, text, engine: currentEngine });
 }
 
 function clearConversation() {
@@ -270,7 +325,7 @@ async function startRecording() {
   if (recording || busy) return;
   try {
     stopSpeaking();
-    stt.load(); // warm up while the user speaks
+    stt.load({ engine: currentEngine }); // warm up while the user speaks
     await recorder.start();
     recording = true;
     micEl.classList.add("recording");
@@ -287,7 +342,7 @@ async function stopRecording() {
   setStatus("Transcribing…");
   try {
     const audio = await recorder.stop();
-    stt.post({ type: "transcribe", audio });
+    stt.post({ type: "transcribe", audio, engine: currentEngine });
   } catch (err: any) {
     setStatus(`Recording error: ${err?.message ?? err}`);
   }
@@ -306,15 +361,17 @@ micEl.addEventListener("pointerup", stopRecording);
 micEl.addEventListener("pointerleave", stopRecording);
 
 // ---------- startup ----------
+setupEnginePicker();
 setupModelPicker();
 loadHistory();
 initPWA();
 
 (async () => {
-  const device = await pickDevice();
-  if (device === "wasm") {
-    setStatus("No WebGPU — running in WASM (slower). Models still work.");
+  const device = await resolveDevice(currentEngine);
+  const where = device === "wasm" ? "WASM" : "WebGPU";
+  if (isIOSLike() && currentEngine === "auto") {
+    setStatus(`Ready (iOS · ${where}) — say hello or type a message`);
   } else {
-    setStatus("Ready — say hello or type a message");
+    setStatus(`Ready (${where}) — say hello or type a message`);
   }
 })();

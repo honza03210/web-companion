@@ -4,9 +4,10 @@ import {
   GENERATION,
   DEFAULT_LLM_ID,
   llmModel,
-  pickDevice,
+  resolveDevice,
   idleDisposeMs,
   type Device,
+  type Engine,
 } from "./config";
 import type { ChatMessage, LlmRequest, WorkerEvent } from "./protocol";
 import { installModelCache } from "./opfs-cache";
@@ -18,7 +19,9 @@ const post = (msg: WorkerEvent, transfer?: Transferable[]) =>
 
 let generator: TextGenerationPipeline | null = null;
 let loadedId: string | null = null;
+let loadedDevice: Device | null = null;
 let device: Device = "wasm";
+let engine: Engine = "auto";
 let idleTimer: ReturnType<typeof setTimeout> | undefined;
 
 function keepAlive(reset: boolean) {
@@ -35,20 +38,23 @@ async function release() {
   }
   generator = null;
   loadedId = null;
+  loadedDevice = null;
   post({ type: "released" });
 }
 
 async function ensureLoaded(id: string) {
-  if (generator && loadedId === id) return;
-  if (generator) await release(); // switching models — free the old one first
+  const target = await resolveDevice(engine);
+  if (generator && loadedId === id && loadedDevice === target) return;
+  if (generator) await release(); // switching model or backend — free the old one
   const model = llmModel(id);
-  device = await pickDevice();
+  device = target;
   generator = (await (pipeline as any)("text-generation", model.id, {
     device,
     dtype: model.dtype[device],
     progress_callback: (info: any) => post({ type: "progress", info }),
   })) as TextGenerationPipeline;
   loadedId = id;
+  loadedDevice = device;
   post({ type: "ready", device });
 }
 
@@ -75,6 +81,7 @@ async function generate(messages: ChatMessage[], id: string) {
 
 self.addEventListener("message", async (e: MessageEvent<LlmRequest>) => {
   try {
+    if (e.data.engine) engine = e.data.engine;
     if (e.data.type === "load") await ensureLoaded(e.data.model ?? DEFAULT_LLM_ID);
     else if (e.data.type === "generate")
       await generate(e.data.messages, e.data.model ?? DEFAULT_LLM_ID);

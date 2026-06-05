@@ -88,6 +88,7 @@ The header shows live storage usage (e.g. `Saved offline · 354 MB`).
 - **Idle-dispose lifecycle** ([`src/config.ts`](src/config.ts) `idleDisposeMs` + each worker): every model disposes itself after a period of disuse, so all three never sit resident in WebGPU at once on a 6 GB iPhone 15. The LLM stays warm longer (used every turn); STT/TTS release quickly. Workers transparently reload on next use.
 - **Device-aware quantization** ([`src/config.ts`](src/config.ts) `DTYPE`): WebGPU gets fp16-friendly formats; the WASM fallback avoids fp16. Kokoro is q8 (~88 MB, down from ~330 MB fp32).
 - **Capability messaging**: detects WebGPU and tells the user when it's falling back to (slower) WASM.
+- **iOS-safe backend**: on iPhone/iPad, WebGPU *inference* OOM-kills the Safari tab for these model sizes (per-buffer/memory limits hit at compute time, even though load succeeds). So the **Auto** engine uses **WASM on iOS** — slower but stable. A header **engine picker** (Auto / WebGPU / WASM) lets you override and experiment, and an on-screen error bar surfaces failures instead of crashing silently.
 
 ## Phase 4 — voice UX
 

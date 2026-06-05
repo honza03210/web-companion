@@ -8,8 +8,8 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>Web Companion — on-device voice assistant</title>
-    <script type="module" crossorigin src="/assets/index-1_eYeXK4.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-CDT6IPmd.css">
+    <script type="module" crossorigin src="/assets/index-DFYu57fj.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-CWukeJz0.css">
   <link rel="manifest" href="/manifest.webmanifest"></head>
   <body>
     <div id="app">
@@ -19,10 +19,13 @@
           <div id="storage" class="storage"></div>
         </div>
         <div id="status" class="status">Idle</div>
+        <select id="engine" class="model-select" title="Compute backend"></select>
         <select id="model" class="model-select" title="Language model"></select>
         <button id="clear" class="ghost" title="Clear conversation">Clear</button>
         <button id="install" class="install" hidden>Install</button>
       </header>
+
+      <div id="err" class="errbar" hidden></div>
 
       <div id="ioshint" class="ioshint" hidden>
         Tip: tap <strong>Share → Add to Home Screen</strong> to keep the model

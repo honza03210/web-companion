@@ -75,19 +75,40 @@ export const MAX_HISTORY_TURNS = 6;
 export const TTS_VOICE = "af_heart";
 
 export type Device = "webgpu" | "wasm";
+export type Engine = "auto" | "webgpu" | "wasm";
 
-/** Detect a usable WebGPU adapter, falling back to WASM. */
-export async function pickDevice(): Promise<Device> {
+async function hasWebGPU(): Promise<boolean> {
   try {
     const gpu = (navigator as any).gpu;
     if (gpu) {
       const adapter = await gpu.requestAdapter();
-      if (adapter) return "webgpu";
+      return !!adapter;
     }
   } catch {
     /* fall through */
   }
-  return "wasm";
+  return false;
+}
+
+/** iPhone/iPad, including iPadOS that reports itself as desktop Safari. */
+export function isIOSLike(): boolean {
+  const ua = navigator.userAgent;
+  return (
+    /iphone|ipad|ipod/i.test(ua) ||
+    (/macintosh/i.test(ua) && (navigator as any).maxTouchPoints > 1)
+  );
+}
+
+/**
+ * Resolve the compute backend. On iOS, WebGPU inference OOM-kills the Safari tab
+ * for these model sizes (per-buffer/memory limits hit at compute time), so "auto"
+ * deliberately uses WASM there — slower but stable. Desktop "auto" uses WebGPU.
+ */
+export async function resolveDevice(engine: Engine = "auto"): Promise<Device> {
+  if (engine === "wasm") return "wasm";
+  if (engine === "webgpu") return (await hasWebGPU()) ? "webgpu" : "wasm";
+  if (isIOSLike()) return "wasm";
+  return (await hasWebGPU()) ? "webgpu" : "wasm";
 }
 
 /**

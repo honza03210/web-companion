@@ -1,6 +1,6 @@
 /// <reference lib="webworker" />
 import { pipeline, type AutomaticSpeechRecognitionPipeline } from "@huggingface/transformers";
-import { MODELS, DTYPE, pickDevice, idleDisposeMs, type Device } from "./config";
+import { MODELS, DTYPE, resolveDevice, idleDisposeMs, type Device, type Engine } from "./config";
 import type { SttRequest, WorkerEvent } from "./protocol";
 import { installModelCache } from "./opfs-cache";
 
@@ -10,6 +10,8 @@ const post = (msg: WorkerEvent) => (self as DedicatedWorkerGlobalScope).postMess
 
 let transcriber: AutomaticSpeechRecognitionPipeline | null = null;
 let device: Device = "wasm";
+let loadedDevice: Device | null = null;
+let engine: Engine = "auto";
 let idleTimer: ReturnType<typeof setTimeout> | undefined;
 
 function keepAlive(reset: boolean) {
@@ -25,17 +27,21 @@ async function release() {
     /* ignore */
   }
   transcriber = null;
+  loadedDevice = null;
   post({ type: "released" });
 }
 
 async function ensureLoaded() {
-  if (transcriber) return;
-  device = await pickDevice();
+  const target = await resolveDevice(engine);
+  if (transcriber && loadedDevice === target) return;
+  if (transcriber) await release();
+  device = target;
   transcriber = (await (pipeline as any)("automatic-speech-recognition", MODELS.stt, {
     device,
     dtype: DTYPE.stt[device],
     progress_callback: (info: any) => post({ type: "progress", info }),
   })) as AutomaticSpeechRecognitionPipeline;
+  loadedDevice = device;
   post({ type: "ready", device });
 }
 
@@ -54,6 +60,7 @@ async function transcribe(audio: Float32Array) {
 
 self.addEventListener("message", async (e: MessageEvent<SttRequest>) => {
   try {
+    if (e.data.engine) engine = e.data.engine;
     if (e.data.type === "load") await ensureLoaded();
     else if (e.data.type === "transcribe") await transcribe(e.data.audio);
   } catch (err: any) {

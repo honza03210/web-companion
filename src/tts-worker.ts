@@ -1,6 +1,6 @@
 /// <reference lib="webworker" />
 import { KokoroTTS } from "kokoro-js";
-import { MODELS, DTYPE, TTS_VOICE, pickDevice, idleDisposeMs, type Device } from "./config";
+import { MODELS, DTYPE, TTS_VOICE, resolveDevice, idleDisposeMs, type Device, type Engine } from "./config";
 import type { TtsRequest, WorkerEvent } from "./protocol";
 import { installModelCache } from "./opfs-cache";
 
@@ -12,6 +12,8 @@ const post = (msg: WorkerEvent, transfer?: Transferable[]) =>
 
 let tts: KokoroTTS | null = null;
 let device: Device = "wasm";
+let loadedDevice: Device | null = null;
+let engine: Engine = "auto";
 let idleTimer: ReturnType<typeof setTimeout> | undefined;
 
 function keepAlive(reset: boolean) {
@@ -28,17 +30,21 @@ async function release() {
     /* ignore */
   }
   tts = null;
+  loadedDevice = null;
   post({ type: "released" });
 }
 
 async function ensureLoaded() {
-  if (tts) return;
-  device = await pickDevice();
+  const target = await resolveDevice(engine);
+  if (tts && loadedDevice === target) return;
+  if (tts) await release();
+  device = target;
   tts = await KokoroTTS.from_pretrained(MODELS.tts, {
     device,
     dtype: DTYPE.tts[device],
     progress_callback: (info: any) => post({ type: "progress", info }),
   });
+  loadedDevice = device;
   post({ type: "ready", device });
 }
 
@@ -53,6 +59,7 @@ async function speak(id: number, text: string) {
 
 self.addEventListener("message", async (e: MessageEvent<TtsRequest>) => {
   try {
+    if (e.data.engine) engine = e.data.engine;
     if (e.data.type === "load") await ensureLoaded();
     else if (e.data.type === "speak") await speak(e.data.id, e.data.text);
   } catch (err: any) {

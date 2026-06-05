@@ -17,10 +17,13 @@
           <div id="storage" class="storage"></div>
         </div>
         <div id="status" class="status">Idle</div>
+        <select id="engine" class="model-select" title="Compute backend"></select>
         <select id="model" class="model-select" title="Language model"></select>
         <button id="clear" class="ghost" title="Clear conversation">Clear</button>
         <button id="install" class="install" hidden>Install</button>
       </header>
+
+      <div id="err" class="errbar" hidden></div>
 
       <div id="ioshint" class="ioshint" hidden>
         Tip: tap <strong>Share → Add to Home Screen</strong> to keep the model

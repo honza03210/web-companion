@@ -1,6 +1,6 @@
 // Message protocol shared between the UI thread and the model workers.
 
-import type { Device } from "./config";
+import type { Device, Engine } from "./config";
 
 export interface ProgressInfo {
   status: "initiate" | "download" | "progress" | "done" | "ready";
@@ -11,17 +11,18 @@ export interface ProgressInfo {
 }
 
 // ---- main -> worker ----
+// Every request carries the chosen engine so a worker honours backend switches.
 export type LlmRequest =
-  | { type: "load"; model: string }
-  | { type: "generate"; messages: ChatMessage[]; model: string };
+  | { type: "load"; model: string; engine?: Engine }
+  | { type: "generate"; messages: ChatMessage[]; model: string; engine?: Engine };
 
 export type SttRequest =
-  | { type: "load" }
-  | { type: "transcribe"; audio: Float32Array };
+  | { type: "load"; engine?: Engine }
+  | { type: "transcribe"; audio: Float32Array; engine?: Engine };
 
 export type TtsRequest =
-  | { type: "load" }
-  | { type: "speak"; id: number; text: string };
+  | { type: "load"; engine?: Engine }
+  | { type: "speak"; id: number; text: string; engine?: Engine };
 
 // ---- worker -> main ----
 export type WorkerEvent =
