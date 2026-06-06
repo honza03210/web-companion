@@ -74,7 +74,21 @@ body {
   white-space: nowrap;
 }
 
-.model-select {
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-bottom: 1px solid #1e293b;
+  flex-wrap: wrap;
+}
+
+.toolbar .spacer {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.select {
   border: 1px solid #334155;
   background: #0e1422;
   color: var(--text);
@@ -82,7 +96,8 @@ body {
   border-radius: 14px;
   padding: 6px 8px;
   cursor: pointer;
-  max-width: 150px;
+  min-width: 0;
+  max-width: 46%;
 }
 
 .errbar {
@@ -184,6 +199,7 @@ body {
 
 .text {
   flex: 1;
+  min-width: 0;
   padding: 11px 14px;
   border-radius: 22px;
   border: 1px solid #334155;

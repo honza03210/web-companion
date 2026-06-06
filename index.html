@@ -17,11 +17,18 @@
           <div id="storage" class="storage"></div>
         </div>
         <div id="status" class="status">Idle</div>
-        <select id="engine" class="model-select" title="Compute backend"></select>
-        <select id="model" class="model-select" title="Language model"></select>
+      </header>
+
+      <div class="toolbar">
+        <select id="engine" class="select" title="Compute backend"></select>
+        <select id="model" class="select" title="Language model"></select>
+        <label class="speak-toggle">
+          <input id="speak" type="checkbox" checked /> Speak
+        </label>
+        <span class="spacer"></span>
         <button id="clear" class="ghost" title="Clear conversation">Clear</button>
         <button id="install" class="install" hidden>Install</button>
-      </header>
+      </div>
 
       <div id="err" class="errbar" hidden></div>
 
@@ -36,11 +43,8 @@
       <footer class="composer">
         <button id="mic" class="mic" title="Hold to talk" aria-label="Hold to talk">🎙️</button>
         <input id="text" class="text" type="text" placeholder="Type a message…" autocomplete="off" />
-        <button id="send" class="send">Send</button>
         <button id="stop" class="stop" hidden title="Stop speaking">⏹</button>
-        <label class="speak-toggle">
-          <input id="speak" type="checkbox" checked /> Speak
-        </label>
+        <button id="send" class="send">Send</button>
       </footer>
     </div>
     <script type="module" src="/src/main.ts"></script>
