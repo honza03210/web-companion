@@ -35,9 +35,34 @@ async function updateStorageReadout() {
   }
 }
 
+/**
+ * Force the latest deployed version: drop the service worker and the app-shell
+ * cache, then reload. Deliberately leaves OPFS (model weights) untouched so the
+ * models are NOT re-downloaded — only the app code is refreshed.
+ */
+export async function forceUpdate() {
+  try {
+    const regs = await navigator.serviceWorker?.getRegistrations?.();
+    await Promise.all((regs ?? []).map((r) => r.unregister()));
+    const keys = await caches?.keys?.();
+    await Promise.all((keys ?? []).map((k) => caches.delete(k)));
+  } catch {
+    /* best effort */
+  }
+  // Cache-busting query param defeats any stale HTTP cache on the reload.
+  location.replace(location.pathname + "?u=" + Date.now());
+}
+
 export function initPWA() {
   // 1. Register the service worker (precaches app shell + wasm for offline launch).
   registerSW({ immediate: true });
+
+  // Manual "Update" — recover from a stale cached build (common on iOS).
+  document.getElementById("update")?.addEventListener("click", () => {
+    if (confirm("Update to the latest version? Your downloaded models are kept.")) {
+      forceUpdate();
+    }
+  });
 
   // 2. Ask the browser to keep our storage (exempt from eviction under pressure).
   navigator.storage?.persist?.().finally(updateStorageReadout);

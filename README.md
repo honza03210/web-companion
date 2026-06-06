@@ -78,6 +78,7 @@ The app is an installable PWA, so it survives without a network and the model is
 - **Model weights** are stored in **OPFS** ([`src/opfs-cache.ts`](src/opfs-cache.ts)) via a custom transformers.js cache. First visit downloads them once; every visit after reads from disk.
 - **`navigator.storage.persist()`** is requested on startup so the browser won't evict the weights under storage pressure.
 - **Install to keep it forever:** Chrome/Android show an **Install** button; iOS shows an *Add to Home Screen* hint. On iOS this matters — Home-Screen web apps are exempt from Safari's 7-day storage-eviction rule, so persistence becomes indefinite. No App Store, no native app.
+- **↻ Update button:** iOS service workers are sticky, so a redeploy can keep serving the old cached build. The toolbar's Update button unregisters the SW, clears the app-shell cache, and reloads — **without touching OPFS**, so the downloaded models are kept (no re-download).
 
 The header shows live storage usage (e.g. `Saved offline · 354 MB`).
 
